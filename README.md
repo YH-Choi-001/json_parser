@@ -21,12 +21,16 @@ or
   
 read:  
 ```
-if (!parser.isParseError()) {  
-    JsonValue rootValue = parser.getRootValue();  
-    // process the data ...  
-} else {  
-    System.out.println("Error: line " + parser.getErrorLine() + ", column " + parser.getErrorColumn());  
-}  
+try {
+    try {
+        parser.parse();
+        JsonValue rootValue = parser.getRootValue();
+    } catch (JsonFormatException e) {
+        e.printStackTrace();
+    }
+} catch (FileNotFoundException e) {
+    e.printStackTrace();
+}
 ```
   
 #### Write json  
@@ -65,7 +69,7 @@ JsonNum number = (JsonNum)rootArray.getValue(0);    // get the value at index 0 
 rootArray.removeValue(5);                           // remove value at index 5
 int arrayLength = rootArray.size();                 // get the array length
 
-// Convert JSON values into a JSON file. 
+// Convert JSON values into a JSON file.
 String jsonString = rootArray.toString();
 // OutputStream out = new OutputStream(new File("output.txt"));
 // out.print(jsonString);

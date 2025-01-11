@@ -51,7 +51,9 @@ public class JsonParser
     
     private int currentLine;                // the line being processed
     private int currentColumn;              // the column being processed
-    private boolean parseError;             // whether an error has occured when parsing the json
+
+    private File file;                      // the json file
+    private String contents;                // the json file contents
 
     /**
      * Constructor for objects of class JsonParser.
@@ -61,32 +63,7 @@ public class JsonParser
     public JsonParser(File file)
     {
         commonInit();
-        if (!file.exists()) {
-            return;
-        }
-        try {
-            parseError = (parseByChar("[\n") != 0);
-            String contents = "";
-            Scanner scanner = new Scanner(file);
-            while (scanner.hasNextLine()) {
-                contents += scanner.nextLine() + '\n';
-                if (contents.length() >= 1024) {
-                    parseError = (parseByChar(contents) != 0);
-                    if (parseError) {
-                        return;
-                    }
-                    contents = "";
-                }
-            }
-            parseError = (parseByChar(contents) != 0);
-            if (parseError) {
-                return;
-            }
-            parseError = (parseByChar("\n]") != 0);
-            actualRootValue = getActualRootValue();
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
+        this.file = file;
     }
     
     /**
@@ -97,13 +74,7 @@ public class JsonParser
     public JsonParser(String contents)
     {
         commonInit();
-        parseError = (parseByChar("[\n") != 0);
-        parseError = (parseByChar(contents) != 0);
-        if (parseError) {
-            return;
-        }
-        parseError = (parseByChar("\n]") != 0);
-        actualRootValue = getActualRootValue();
+        this.contents = contents;
     }
     
     /**
@@ -125,29 +96,96 @@ public class JsonParser
         symbolCompletelyRead = false;
         currentLine = 1;
         currentColumn = 1;
-        parseError = false;
+        file = null;
+        contents = null;
     }
-    
+
     /**
-     * Redirects an error message to the appropriate output.
+     * Parse the entire file.
      * 
-     * @param msg the error message
+     * @throws FileNotFoundException thrown when file is not found
+     * @throws JsonFormatException thrown when illegal json format is found
      */
-    private void errMsg(String msg)
+    public final void parse() throws FileNotFoundException, JsonFormatException
     {
-        System.err.println(msg);
+        // Due to design flaws, the outermost datatype processed by parseByChar() must be JsonArray of JsonObject.
+        // Hence, we wrap an outer JsonArray on the original json data.
+        if (file != null) {
+            parseByChar("[\n");
+            contents = "";
+            Scanner scanner = new Scanner(file);
+            while (scanner.hasNextLine()) {
+                contents += scanner.nextLine() + '\n';
+                if (contents.length() >= 1024) {
+                    parseByChar(contents);
+                    contents = "";
+                }
+            }
+            parseByChar(contents);
+            parseByChar("\n]");
+            actualRootValue = getActualRootValue();
+        } else if (contents != null) {
+            parseByChar("[\n");
+            parseByChar(contents);
+            parseByChar("\n]");
+            actualRootValue = getActualRootValue();
+        } else {
+            actualRootValue = null;
+        }
+    }
+
+    /**
+     * Gets the file path of the file reading by json parser.
+     * 
+     * @return the file path of the file reading by json parser, or <code>null</code> if a file is not used
+     */
+    private String getFilePath()
+    {
+        return file != null ? file.getAbsolutePath() : null;
+    }
+
+    /**
+     * Extracts the error line with squiggles and pointer to indicate the error.
+     * 
+     * @param str the json string
+     * @param idx the index of error in <code>str</code>
+     */
+    private String errorWrapLine(String str, int idx)
+    {
+        int lineStartIdx = str.lastIndexOf("\n", idx) + 1;
+
+        int lineEndIdx = str.indexOf("\n", idx);
+        if (lineEndIdx == -1) {
+            lineEndIdx = str.length();
+        }
+
+        final String entireLine = str.substring(lineStartIdx, lineEndIdx);
+
+        String toReturn = entireLine + "\n";
+
+        if (entireLine.isEmpty()) {
+            return toReturn;
+        }
+
+        final int errorColumnIndex = idx - lineStartIdx;
+
+        for (int i = 0; i < entireLine.length(); i++) {
+            toReturn += ((i == errorColumnIndex) ? "!" : "~");
+        }
+        return toReturn;
     }
     
     /**
      * Parse the string input.
      * 
      * @param the string
-     * @return the index of the input that failed, or 0 if successful
+     * @throws JsonFormatException thrown when illegal json format is found
      */
-    private int parseByChar(String string)
+    private void parseByChar(String string) throws JsonFormatException
     {
         if (string == null) {
-            return -1;
+            throw new JsonFormatException(currentLine, currentColumn, getFilePath(),
+                "Json content is null.");
         }
         for (int i = 0; i < string.length(); i++) {
             final char c = string.charAt(i);
@@ -172,9 +210,8 @@ public class JsonParser
                         try {
                             unicode = Integer.parseInt(unicodeBuf, 16);
                         } catch (NumberFormatException e) {
-                            e.printStackTrace();
-                            errMsg("Unicode at " + i + " with string content \"" + unicodeBuf + "\" could not be converted to HEX.");
-                            return i;
+                            throw new JsonFormatException(currentLine, currentColumn, getFilePath(),
+                                "Unicode with string content \"" + unicodeBuf + "\" could not be converted to HEX.\n" + errorWrapLine(string, i));
                         }
                         baos.write(unicode);
                         String utfEncoded = new String(baos.toByteArray(), Charset.forName("UTF-8"));
@@ -210,8 +247,8 @@ public class JsonParser
                             unicodeBuf = "";
                             break;
                         default:
-                            errMsg("\\" + c + " at " + i + " could not be recognized as a valid backslash character.");
-                            return i;
+                            throw new JsonFormatException(currentLine, currentColumn, getFilePath(),
+                                "\\" + c + " could not be recognized as a valid backslash character.\n" + errorWrapLine(string, i));
                     }
                     inEscape = false;
                 } else if (c == '\\') {
@@ -237,8 +274,8 @@ public class JsonParser
                     case '{':
                         // enter a new object
                         if (inKey) {
-                            errMsg("Object being declared as a key at " + i + ".");
-                            return i;
+                            throw new JsonFormatException(currentLine, currentColumn, getFilePath(),
+                                "Object being declared as a key.\n" + errorWrapLine(string, i));
                         }
                         {
                             JsonObject newObj = new JsonObject();
@@ -255,8 +292,8 @@ public class JsonParser
                     case '[':
                         // enter a new array
                         if (inKey) {
-                            errMsg("Array being declared as a key at " + i + ".");
-                            return i;
+                            throw new JsonFormatException(currentLine, currentColumn, getFilePath(),
+                                "Array being declared as a key.\n" + errorWrapLine(string, i));
                         }
                         {
                             JsonArray newArr = new JsonArray();
@@ -270,19 +307,17 @@ public class JsonParser
                     case ']':
                         // exit this array
                         if (!(processingValue instanceof JsonArray)) {
-                            errMsg("Symbol \']\' is unexpected at " + i + " because this layer is not recognized as an array.");
-                            return i;
+                            throw new JsonFormatException(currentLine, currentColumn, getFilePath(),
+                                "Symbol \']\' is unexpected because this layer is not recognized as an array.\n" + errorWrapLine(string, i));
                         }
                         // wrap up the buf for array
-                        if (!wrapUpSymbolBuf(i)) {
-                            return i;
-                        }
+                        wrapUpSymbolBuf(currentLine, currentColumn, string, i);
                         {
                             JsonValue parent = processingValue.getParent();
                             if ((processingValue == rootValue) || (parent == null)) {
                                 // we are exiting the outermost structure in the json file
                                 processingValue = null;
-                                return 0;
+                                return;
                             }
                             // exit this array i.e. switch processing value back to parent
                             processingValue = parent;
@@ -291,19 +326,17 @@ public class JsonParser
                     case '}':
                         // exit this object
                         if (!(processingValue instanceof JsonObject)) {
-                            errMsg("Symbol \'}\' is unexpected at " + i + " because this layer is not recognized as an object.");
-                            return i;
+                            throw new JsonFormatException(currentLine, currentColumn, getFilePath(),
+                                "Symbol \'}\' is unexpected because this layer is not recognized as an object.\n" + errorWrapLine(string, i));
                         }
                         // wrap up the buf for object
-                        if (!wrapUpSymbolBuf(i)) {
-                            return i;
-                        }
+                        wrapUpSymbolBuf(currentLine, currentColumn, string, i);
                         {
                             JsonValue parent = processingValue.getParent();
                             if ((processingValue == rootValue) || (parent == null)) {
                                 // we are exiting the outermost structure in the json file
                                 processingValue = null;
-                                return 0;
+                                return;
                             }
                             // exit this object i.e. switch processing value back to parent
                             processingValue = parent;
@@ -313,35 +346,31 @@ public class JsonParser
                     case ',':
                         if (processingValue instanceof JsonArray) {
                             // wrap up the buf for array
-                            if (!wrapUpSymbolBuf(i)) {
-                                return i;
-                            }
+                            wrapUpSymbolBuf(currentLine, currentColumn, string, i);
                         } else if (processingValue instanceof JsonObject) {
                             if (!inKey) {
                                 // wrap up the buf for object
-                                if (!wrapUpSymbolBuf(i)) {
-                                    return i;
-                                }
+                                wrapUpSymbolBuf(currentLine, currentColumn, string, i);
                                 
                                 // parser has to treat next string as a key in an object
                                 inKey = true;
                             } else {
-                                errMsg("Symbol \',\' is unexpected at " + i + " because the key is not given.");
-                                return i;
+                                throw new JsonFormatException(currentLine, currentColumn, getFilePath(),
+                                    "Symbol \',\' is unexpected because the key is not given.\n" + errorWrapLine(string, i));
                             }
                         } else {
-                            errMsg("Symbol \',\' is unexpected at " + i + " because this layer is neither array nor object.");
-                            return i;
+                            throw new JsonFormatException(currentLine, currentColumn, getFilePath(),
+                                "Symbol \',\' is unexpected because this layer is neither array nor object.\n" + errorWrapLine(string, i));
                         }
                         break;
                     case ':':
                         if (!(processingValue instanceof JsonObject)) {
-                            errMsg("The symbol \':\' appeared at " + i + " is not inside an object.");
-                            return i;
+                            throw new JsonFormatException(currentLine, currentColumn, getFilePath(),
+                                "The symbol \':\' is not inside an object.\n" + errorWrapLine(string, i));
                         }
                         if (!inKey) {
-                            errMsg("The symbol \':\' appeared at " + i + " could not be recognized to separate key and value in an object.");
-                            return i;
+                            throw new JsonFormatException(currentLine, currentColumn, getFilePath(),
+                                "The symbol \':\' could not be recognized to separate key and value in an object.\n" + errorWrapLine(string, i));
                         }
                         inKey = false;
                         break;
@@ -358,15 +387,14 @@ public class JsonParser
                             symbolCompletelyRead = false;
                         }
                         if (symbolCompletelyRead) {
-                            errMsg("Unexpected symbol \'" + string.substring(i-100, i+1) + "\' at " + i + ".");
-                            return i;
+                            throw new JsonFormatException(currentLine, currentColumn, getFilePath(),
+                                "Unexpected symbol \'" + string.substring(i-100, i+1) + "\'.\n" + errorWrapLine(string, i));
                         }
                         symbolBuf += c;
                         break;
                 }
             }
         }
-        return 0;
     }
 
     private static boolean isHexDigit(char c)
@@ -424,16 +452,18 @@ public class JsonParser
     /**
      * Concludes the symbol held by symbolBuf, and attempts to convert it into one of the JsonValue types.
      * 
-     * @param index the index of the character being processed
-     * @return true if wrap up is successful, false otherwise
+     * @param currentLine the line being processed
+     * @param currentColumn the column being processed
+     * @param string the full string being processed
+     * @param i the index of the character being processed
+     * @throws JsonFormatException thrown when illegal json format is found
      */
-    private boolean wrapUpSymbolBuf(int index)
+    private void wrapUpSymbolBuf(int currentLine, int currentColumn, String string, int i) throws JsonFormatException
     {
         if (symbolBuf.isEmpty()) {
-            return true;
+            return;
         }
-        
-        boolean toReturn = true;
+
         JsonValue newValue = null;
         
         if (symbolBuf.equals(JsonBool.TRUE_EXPRESSION)) {
@@ -447,51 +477,17 @@ public class JsonParser
                 double doubleVal = Double.parseDouble(symbolBuf);
                 newValue = new JsonNum(doubleVal);
             } catch (NumberFormatException e) {
-                e.printStackTrace();
-                errMsg("Symbol \"" + symbolBuf + "\" is unrecognized at " + index + " (neither true, false, null nor number).");
-                toReturn = false;
+                throw new JsonFormatException(currentLine, currentColumn, getFilePath(),
+                    "Symbol \"" + symbolBuf + "\" is unrecognized (neither true, false, null nor number).\n" + errorWrapLine(string, i));
             }
         }
         
-        if (newValue != null) {
-            if (!addNewValueToProcessingValue(newValue)) {
-                errMsg("control flow error: JsonParser.wrapUpSymbolBuf() invoked when processingValue is not a container.");
-                toReturn = false;
-            }
+        if (!addNewValueToProcessingValue(newValue)) {
+            throw new JsonFormatException(currentLine, currentColumn, getFilePath(),
+                "Control flow error: JsonParser.wrapUpSymbolBuf() invoked when processingValue is not a container.\n" + errorWrapLine(string, i));
         }
         
         symbolBuf = "";
-        return toReturn;
-    }
-
-    /**
-     * Gets whether an error has occured or not when parsing the json.
-     * 
-     * @return true if an error has occured, false otherwise
-     */
-    public boolean isParseError()
-    {
-        return parseError;
-    }
-
-    /**
-     * Gets the line where an error has occured.
-     * 
-     * @return the line (starting from 1) where an error has occured, or 0 if no error has occured
-     */
-    public int getErrorLine()
-    {
-        return parseError ? (currentLine - 1) : 0;
-    }
-
-    /**
-     * Gets the column where an error has occured.
-     * 
-     * @return the column (starting from 1) where an error has occured, or 0 if no error has occured
-     */
-    public int getErrorColumn()
-    {
-        return parseError ? currentColumn : 0;
     }
 
     /**
@@ -501,9 +497,6 @@ public class JsonParser
      */
     private JsonValue getActualRootValue()
     {
-        if (parseError) {
-            return null;
-        }
         final JsonArray wrappingArray = (JsonArray)rootValue;
         if (wrappingArray.size() > 0) {
             return wrappingArray.getValue(0).getDuplicate();
@@ -517,7 +510,7 @@ public class JsonParser
      * 
      * @return the root json value, or null if an error has occured
      */
-    public JsonValue getRootValue()
+    public final JsonValue getRootValue()
     {
         return actualRootValue;
     }
