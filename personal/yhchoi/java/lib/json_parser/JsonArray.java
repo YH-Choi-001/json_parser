@@ -85,11 +85,15 @@ public final class JsonArray extends JsonValue implements Iterable<JsonValue>
      * 
      * @param newValue the new value to be added
      * @throws JsonValueLockedException if this method is called when this object is locked
+     * @throws NullPointerException if <code>newValue == null</code>
      */
-    public void addValue(JsonValue newValue) throws JsonValueLockedException
+    public void addValue(JsonValue newValue) throws JsonValueLockedException, NullPointerException
     {
         if (isLocked()) {
             throw new JsonValueLockedException();
+        }
+        if (newValue == null) {
+            throw new NullPointerException();
         }
         getArray().add(newValue);
         newValue.setParent(this);
@@ -103,12 +107,16 @@ public final class JsonArray extends JsonValue implements Iterable<JsonValue>
      * @param index the index to insert
      * @param newValue the new value to be inserted
      * @throws JsonValueLockedException if this method is called when this object is locked
-     * @throws IndexOutOfBoundsException if the index is out of range (index &lt; 0 || index >= size())
+     * @throws IndexOutOfBoundsException if the index is out of range (index &lt; 0 || index &gt;= size())
+     * @throws NullPointerException if <code>newValue == null</code>
      */
-    public void addValue(int index, JsonValue newValue) throws JsonValueLockedException, IndexOutOfBoundsException
+    public void addValue(int index, JsonValue newValue) throws JsonValueLockedException, IndexOutOfBoundsException, NullPointerException
     {
         if (isLocked()) {
             throw new JsonValueLockedException();
+        }
+        if (newValue == null) {
+            throw new NullPointerException();
         }
         getArray().add(index, newValue);
         newValue.setParent(this);
@@ -120,16 +128,17 @@ public final class JsonArray extends JsonValue implements Iterable<JsonValue>
      * No action is taken if this json array or ancestors are locked.
      * 
      * @param index the index to insert
+     * @return the value being removed
      * @throws JsonValueLockedException if this method is called when this object is locked
-     * @throws IndexOutOfBoundsException if the index is out of range (index &lt; 0 || index >= size())
+     * @throws IndexOutOfBoundsException if the index is out of range (index &lt; 0 || index &gt;= size())
      */
-    public void removeValue(int index) throws JsonValueLockedException, IndexOutOfBoundsException
+    public JsonValue removeValue(int index) throws JsonValueLockedException, IndexOutOfBoundsException
     {
         if (isLocked()) {
             throw new JsonValueLockedException();
         }
         getArray().get(index).setParent(null);
-        getArray().remove(index);
+        return getArray().remove(index);
     }
     
     /**
@@ -137,11 +146,35 @@ public final class JsonArray extends JsonValue implements Iterable<JsonValue>
      * 
      * @param index the index of the value
      * @return the value, or null if index is invalid
-     * @throws IndexOutOfBoundsException if the index is out of range (index &lt; 0 || index >= size())
+     * @throws IndexOutOfBoundsException if the index is out of range (index &lt; 0 || index &gt;= size())
      */
     public JsonValue getValue(int index) throws IndexOutOfBoundsException
     {
         return getArray().get(index);
+    }
+    
+    /**
+     * Sets one value from the array of values.
+     * 
+     * @param index the index
+     * @param newValue the new value to be assigned to
+     * @return the previous value at that index
+     * @throws JsonValueLockedException if this method is called when this object is locked
+     * @throws IndexOutOfBoundsException if the index is out of range (index &lt; 0 || index &gt;= size())
+     * @throws NullPointerException if <code>newValue == null</code>
+     */
+    public JsonValue setValue(int index, JsonValue newValue) throws JsonValueLockedException, IndexOutOfBoundsException, NullPointerException
+    {
+        if (isLocked()) {
+            throw new JsonValueLockedException();
+        }
+        if (newValue == null) {
+            throw new NullPointerException();
+        }
+        final JsonValue oldValue = getArray().get(index);
+        oldValue.setParent(null);
+        getArray().set(index, newValue);
+        return oldValue;
     }
     
     /**
@@ -260,7 +293,8 @@ public final class JsonArray extends JsonValue implements Iterable<JsonValue>
      */
     private class Iter implements Iterator<JsonValue>
     {
-        private int idx;    // scanning index
+        private int idx;                // scanning index
+        private boolean removable;      // if the current item is removable
 
         /**
          * Constructor for iterator.
@@ -268,6 +302,7 @@ public final class JsonArray extends JsonValue implements Iterable<JsonValue>
         public Iter()
         {
             idx = 0;
+            removable = false;
         }
 
         /**
@@ -294,7 +329,23 @@ public final class JsonArray extends JsonValue implements Iterable<JsonValue>
             }
             final JsonValue value = getValue(idx);
             idx++;
+            removable = true;
             return value;
+        }
+
+        /**
+         * Removes current element from this json array.
+         * 
+         * @throws IllegalStateException if the <code>next</code> method has not yet been called, or the <code>remove</code> method has already been called after the last call to the <code>next</code> method
+         */
+        @Override
+        public void remove() throws IllegalStateException
+        {
+            if (!removable) {
+                throw new IllegalStateException();
+            }
+            removeValue(idx);
+            removable = false;
         }
     }
 }

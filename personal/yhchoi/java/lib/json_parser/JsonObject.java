@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.Set;
 
 /**
@@ -108,14 +109,15 @@ public final class JsonObject extends JsonValue implements Iterable<JsonValue>
      * @param key the key to map to this value
      * @param newValue the new value to be added
      * @throws JsonValueLockedException if this method is called when this object is locked
+     * @throws NullPointerException if <code>(key == null) || (newValue == null)</code>
      */
-    public void setValue(String key, JsonValue newValue) throws JsonValueLockedException
+    public void setValue(String key, JsonValue newValue) throws JsonValueLockedException, NullPointerException
     {
         if (isLocked()) {
             throw new JsonValueLockedException();
         }
         if (key == null || newValue == null) {
-            return;
+            throw new NullPointerException();
         }
         final int indexOfKey = keyList.indexOf(key);
         if (indexOfKey == -1) {
@@ -139,40 +141,37 @@ public final class JsonObject extends JsonValue implements Iterable<JsonValue>
      * No action is taken if this json object or ancestors are locked.
      * 
      * @param key the key to the value to be removed
+     * @return the value removed
      * @throws JsonValueLockedException if this method is called when this object is locked
+     * @throws NoSuchElementException if <code>key</code> is not found in this json object
      */
-    public void removeValue(String key) throws JsonValueLockedException
+    public JsonValue removeValue(String key) throws JsonValueLockedException, NoSuchElementException
     {
         if (isLocked()) {
             throw new JsonValueLockedException();
         }
-        if (key == null) {
-            return;
-        }
         final int indexOfKey = keyList.indexOf(key);
         if (indexOfKey == -1) {
-            return;
+            throw new NoSuchElementException();
         }
         valueList.get(indexOfKey).setParent(null);
         keyList.remove(indexOfKey);
-        valueList.remove(indexOfKey);
+        return valueList.remove(indexOfKey);
     }
     
     /**
      * Gets one value from the object of values.
      * 
      * @param key the key
-     * @return the value, or null if the key is not found
+     * @return the requested value
+     * @throws NoSuchElementException if <code>key</code> is not found in this json object
      */
-    public JsonValue getValue(final String key)
+    public JsonValue getValue(final String key) throws NoSuchElementException
     {
-        if (key == null) {
-            return null;
-        }
         final int indexOfKey = keyList.indexOf(key);
         if (indexOfKey == -1) {
             // key not found
-            return null;
+            throw new NoSuchElementException();
         } else {
             // key found, replace the key to the new value
             return valueList.get(indexOfKey);
@@ -197,9 +196,6 @@ public final class JsonObject extends JsonValue implements Iterable<JsonValue>
      */
     public boolean containsKey(String key)
     {
-        if (key == null) {
-            return false;
-        }
         return keyList.contains(key);
     }
     
@@ -332,7 +328,8 @@ public final class JsonObject extends JsonValue implements Iterable<JsonValue>
      */
     private class Iter implements Iterator<JsonValue>
     {
-        private int idx;    // scanning index
+        private int idx;                // scanning index
+        private boolean removable;      // if the current item is removable
 
         /**
          * Constructor for iterator.
@@ -340,6 +337,7 @@ public final class JsonObject extends JsonValue implements Iterable<JsonValue>
         public Iter()
         {
             idx = 0;
+            removable = false;
         }
 
         /**
@@ -366,7 +364,25 @@ public final class JsonObject extends JsonValue implements Iterable<JsonValue>
             }
             final JsonValue value = valueList.get(idx);
             idx++;
+            removable = true;
             return value;
+        }
+
+        /**
+         * Removes current element from this json object.
+         * 
+         * @throws IllegalStateException if the <code>next</code> method has not yet been called, or the <code>remove</code> method has already been called after the last call to the <code>next</code> method
+         */
+        @Override
+        public void remove() throws IllegalStateException
+        {
+            if (!removable) {
+                throw new IllegalStateException();
+            }
+            valueList.get(idx).setParent(null);
+            keyList.remove(idx);
+            valueList.remove(idx);
+            removable = false;
         }
     }
 }
