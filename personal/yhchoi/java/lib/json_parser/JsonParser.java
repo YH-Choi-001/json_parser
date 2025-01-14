@@ -21,17 +21,20 @@
 
 package personal.yhchoi.java.lib.json_parser;
 
+import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.Charset;
-import java.util.Scanner;
 
 /**
  * A parser for json files.
  *
  * @author Yui Hei Choi
- * @version 2024.11.18
+ * @version 2025.01.14
  */
 public class JsonParser
 {
@@ -52,18 +55,36 @@ public class JsonParser
     private int currentLine;                // the line being processed
     private int currentColumn;              // the column being processed
 
-    private File file;                      // the json file
+    private String fileAbsPath;             // the json file absolute path
+    private BufferedInputStream inStream;   // the json file input stream
     private String contents;                // the json file contents
+
+    private boolean parsed;                 // whether the parser already parsed the file
+
+    private static final int IN_STREAM_BUF_SIZE = 1024;    // the input stream buffer size
 
     /**
      * Constructor for objects of class JsonParser.
      * 
      * @param file the json file to be parsed
+     * @throws FileNotFoundException if file is not found
      */
-    public JsonParser(File file)
+    public JsonParser(File file) throws FileNotFoundException
     {
         commonInit();
-        this.file = file;
+        this.inStream = new BufferedInputStream(new FileInputStream(file), IN_STREAM_BUF_SIZE);
+        fileAbsPath = file.getAbsolutePath();
+    }
+    
+    /**
+     * Constructor for objects of class JsonParser.
+     * 
+     * @param inStream the input stream of the json file to be parsed
+     */
+    public JsonParser(InputStream inStream)
+    {
+        commonInit();
+        this.inStream = new BufferedInputStream(inStream, IN_STREAM_BUF_SIZE);
     }
     
     /**
@@ -96,35 +117,41 @@ public class JsonParser
         symbolCompletelyRead = false;
         currentLine = 1;
         currentColumn = 1;
-        file = null;
+        fileAbsPath = null;
+        inStream = null;
         contents = null;
+        parsed = false;
     }
 
     /**
-     * Parse the entire file.
+     * Parses the entire file.
+     * Could only be called once. <br>
+     * To parse the same file multiple times,
+     * create more <code>JsonParser</code> objects instead. <br>
      * 
-     * @throws FileNotFoundException thrown when file is not found
+     * @throws IOException thrown if an I/O error occurs
      * @throws JsonFormatException thrown when illegal json format is found
      */
-    public final void parse() throws FileNotFoundException, JsonFormatException
+    public final void parse() throws IOException, JsonFormatException
     {
+        if (parsed) {
+            return;
+        }
         // Due to design flaws, the outermost datatype processed by parseByChar() must be JsonArray of JsonObject.
         // Hence, we wrap an outer JsonArray on the original json data.
-        if (file != null) {
+        if (inStream != null) {
+            parsed = true;
             parseByChar("[\n");
-            contents = "";
-            Scanner scanner = new Scanner(file);
-            while (scanner.hasNextLine()) {
-                contents += scanner.nextLine() + '\n';
-                if (contents.length() >= 1024) {
-                    parseByChar(contents);
-                    contents = "";
-                }
+            final byte[] bytesBuffer = new byte[IN_STREAM_BUF_SIZE];
+            int bytesRead;
+            while ((bytesRead = inStream.read(bytesBuffer)) > 0) {
+                parseByChar(new String(bytesBuffer, 0, bytesRead));
             }
-            parseByChar(contents);
             parseByChar("\n]");
+            inStream.close();
             actualRootValue = getActualRootValue();
         } else if (contents != null) {
+            parsed = true;
             parseByChar("[\n");
             parseByChar(contents);
             parseByChar("\n]");
@@ -141,7 +168,7 @@ public class JsonParser
      */
     private String getFilePath()
     {
-        return file != null ? file.getAbsolutePath() : null;
+        return fileAbsPath;
     }
 
     /**
@@ -497,8 +524,11 @@ public class JsonParser
      */
     private JsonValue getActualRootValue()
     {
+        if ((rootValue == null) || !(rootValue instanceof JsonArray)) {
+            return null;
+        }
         final JsonArray wrappingArray = (JsonArray)rootValue;
-        if (wrappingArray.size() > 0) {
+        if (wrappingArray.size() == 1) {
             return wrappingArray.getValue(0).getDuplicate();
         } else {
             return null;

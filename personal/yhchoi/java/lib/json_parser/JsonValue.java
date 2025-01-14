@@ -25,7 +25,7 @@ package personal.yhchoi.java.lib.json_parser;
  * A value of json.
  *
  * @author Yui Hei Choi
- * @version 2024.11.18
+ * @version 2025.01.14
  */
 public abstract class JsonValue
 {
@@ -206,4 +206,70 @@ public abstract class JsonValue
      * @return a duplicate of this json value
      */
     public abstract JsonValue getDuplicate();
+
+    /**
+     * Casts this <code>JsonValue</code> to <code>JsonNull</code>.
+     * 
+     * @return <code>(JsonNull)this</code>
+     * @throws ClassCastException if <code>this</code> is not of type <code>JsonNull</code>
+     */
+    public final JsonNull castToNull() throws ClassCastException
+    {
+        return (JsonNull)this;
+    }
+
+    /**
+     * Casts this <code>JsonValue</code> to <code>JsonBool</code>.
+     * 
+     * @return <code>(JsonBool)this</code>
+     * @throws ClassCastException if <code>this</code> is not of type <code>JsonBool</code>
+     */
+    public final JsonBool castToBool() throws ClassCastException
+    {
+        return (JsonBool)this;
+    }
+
+    /**
+     * Casts this <code>JsonValue</code> to <code>JsonNum</code>.
+     * 
+     * @return <code>(JsonNum)this</code>
+     * @throws ClassCastException if <code>this</code> is not of type <code>JsonNum</code>
+     */
+    public final JsonNum castToNum() throws ClassCastException
+    {
+        return (JsonNum)this;
+    }
+
+    /**
+     * Casts this <code>JsonValue</code> to <code>JsonString</code>.
+     * 
+     * @return <code>(JsonString)this</code>
+     * @throws ClassCastException if <code>this</code> is not of type <code>JsonString</code>
+     */
+    public final JsonString castToString() throws ClassCastException
+    {
+        return (JsonString)this;
+    }
+
+    /**
+     * Casts this <code>JsonValue</code> to <code>JsonArray</code>.
+     * 
+     * @return <code>(JsonArray)this</code>
+     * @throws ClassCastException if <code>this</code> is not of type <code>JsonArray</code>
+     */
+    public final JsonArray castToArray() throws ClassCastException
+    {
+        return (JsonArray)this;
+    }
+
+    /**
+     * Casts this <code>JsonValue</code> to <code>JsonObject</code>.
+     * 
+     * @return <code>(JsonObject)this</code>
+     * @throws ClassCastException if <code>this</code> is not of type <code>JsonObject</code>
+     */
+    public final JsonObject castToObject() throws ClassCastException
+    {
+        return (JsonObject)this;
+    }
 }
