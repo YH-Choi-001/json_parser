@@ -1,0 +1,50 @@
+name: Java CI to create and upload release on pull request
+on:
+  push:
+    tags:
+      - '*'
+  # push:
+  #   branches: [ "main" ]
+  # pull_request:
+  #   branches: [ "main" ]
+
+env:
+  build-number: ${GITHUB_RUN_NUMBER}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - name: use github.workspace as working dir
+        run: cd ${{ github.workspace }}
+      - name: collect all java files
+        run: find . -type f -name "*.java" > sources.txt
+      - name: compile
+        run: javac -cp ./ -d ./ @sources.txt
+      - name: collect all class files
+        run: find . -type f -name "*.class" > binaries.txt
+      - name: build_binary_jar
+        run: jar -c -f json_parser_${{ github.ref_name }}_java21_bin.jar @binaries.txt
+      - name: collect all java and class files
+        run: cat sources.txt binaries.txt > sources_and_binaries.txt
+      - name: build_source_jar
+        run: jar -c -f json_parser_${{ github.ref_name }}_java21_src.jar @sources_and_binaries.txt
+      - uses: actions/upload-artifact@v3
+        with:
+          name: Package
+          path: ./*.jar
+          retention-days: 1
+      - uses: marvinpinto/action-automatic-releases@latest
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: "${{ github.ref_name }}"
+          title: "Version ${{ github.ref_name }}"
+          prerelease: false
+          files: |
+            ./LICENSE.txt
+            ./*.jar
