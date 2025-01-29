@@ -6,7 +6,7 @@
  * See LICENSE.txt for details. <br>
  * 
  * @author Yui Hei Choi
- * @version 0.0.1 Alpha
+ * @version 2025.01.29
  * 
  * @see personal.yhchoi.java.lib.json_parser.JsonParser
  * @see personal.yhchoi.java.lib.json_parser.JsonValue
