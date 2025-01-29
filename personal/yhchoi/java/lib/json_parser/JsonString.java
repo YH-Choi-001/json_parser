@@ -1,7 +1,7 @@
 /**
  * 
  *  JsonString.java - A class that holds a string in json.
- *  Copyright (C) 2024 YH Choi
+ *  Copyright (C) 2024 - 2025 YH Choi
  *
  *  This program is licensed under BSD 3-Clause License.
  *  See LICENSE.txt for details.
@@ -25,7 +25,7 @@ package personal.yhchoi.java.lib.json_parser;
  * A string of json.
  *
  * @author Yui Hei Choi
- * @version 2024.11.18
+ * @version 2025.01.29
  */
 public final class JsonString extends JsonValue
 {
@@ -67,13 +67,18 @@ public final class JsonString extends JsonValue
      * 
      * @param newString the new string value
      * @throws JsonValueLockedException if this method is called when this object is locked
+     * @throws NullPointerException if <code>newString == null</code>
      */
-    public void setValue(String newString) throws JsonValueLockedException
+    public void setValue(String newString) throws JsonValueLockedException, NullPointerException
     {
         if (isLocked()) {
             throw new JsonValueLockedException();
         }
+        if (newString == null) {
+            throw new NullPointerException();
+        }
         super.setActualValue(newString);
+        invalidateCachedHashCode();
     }
     
     /**
@@ -95,35 +100,28 @@ public final class JsonString extends JsonValue
     public void serialize(Appendable bufferedOutput)
     {
         bufferedOutput.append("\"");
-        for (char c : getValue().toCharArray()) {
+        final char[] charArray = getValue().toCharArray();
+        for (char c : charArray) {
             switch (c) {
-                case '\"':
-                case '\\':
-                case '/':
-                    bufferedOutput.append("\\" + c);
-                    break;
-                case '\b':
-                    bufferedOutput.append("\\b");
-                    break;
-                case '\f':
-                    bufferedOutput.append("\\f");
-                    break;
-                case '\n':
-                    bufferedOutput.append("\\n");
-                    break;
-                case '\r':
-                    bufferedOutput.append("\\r");
-                    break;
-                case '\t':
-                    bufferedOutput.append("\\t");
-                    break;
-                default:
+                case '\"', '\\' -> bufferedOutput.append("\\" + c);
+                case '\b' -> bufferedOutput.append("\\b");
+                case '\f' -> bufferedOutput.append("\\f");
+                case '\n' -> bufferedOutput.append("\\n");
+                case '\r' -> bufferedOutput.append("\\r");
+                case '\t' -> bufferedOutput.append("\\t");
+                default -> {
                     if (c >= 0x0020 && c <= 0x007e) {
                         bufferedOutput.append("" + c);
                     } else {
-                        bufferedOutput.append("\\u" + Integer.toString((short)c, 16));
+                        bufferedOutput.append("\\u");
+                        final String unicode = Integer.toString((short)c, 16);
+                        final int paddingZeros = 4 - unicode.length();
+                        for (int i = 0; i < paddingZeros; i++) {
+                            bufferedOutput.append("0");
+                        }
+                        bufferedOutput.append(unicode);
                     }
-                    break;
+                }
             }
         }
         bufferedOutput.append("\"");
@@ -139,5 +137,50 @@ public final class JsonString extends JsonValue
     public JsonString getDuplicate()
     {
         return new JsonString(this);
+    }
+
+    /**
+     * Re-generates the hash code.
+     * This hash code value is independent of the ancestors of this json value,
+     * but is dependent of descendants of this json value.
+     * 
+     * @return a hash code value for this object
+     * @see #hashCode()
+     */
+    @Override
+    protected int generateHashCode()
+    {
+        return 7 + (getValue().hashCode() * 31);
+    }
+
+    /**
+     * Returns a hash code value for the object.
+     * This hash code value is independent of the ancestors of this json value.
+     * 
+     * @return a hash code value for this object
+     */
+    @Override
+    public int hashCode()
+    {
+        return super.hashCode();
+    }
+
+    /**
+     * Indicates whether some other object is "equal to" this one.
+     * This comparison is independent of the ancestors of both json values.
+     * 
+     * @param obj the reference object with which to compare
+     * @return <code>true</code> if this object is the same as the obj argument; <code>false</code> otherwise
+     */
+    @Override
+    public boolean equals(Object obj)
+    {
+        if (obj == null) {
+            return false;
+        }
+        if (!(obj instanceof JsonString)) {
+            return false;
+        }
+        return ((JsonString)obj).getValue().equals(this.getValue());
     }
 }

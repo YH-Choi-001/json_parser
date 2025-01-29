@@ -1,7 +1,7 @@
 /**
  * 
  *  JsonNull.java - A class that holds a null in json.
- *  Copyright (C) 2024 YH Choi
+ *  Copyright (C) 2024 - 2025 YH Choi
  *
  *  This program is licensed under BSD 3-Clause License.
  *  See LICENSE.txt for details.
@@ -25,7 +25,7 @@ package personal.yhchoi.java.lib.json_parser;
  * A null of json.
  *
  * @author Yui Hei Choi
- * @version 2024.11.18
+ * @version 2025.01.29
  */
 public final class JsonNull extends JsonValue
 {
@@ -82,5 +82,47 @@ public final class JsonNull extends JsonValue
     public JsonNull getDuplicate()
     {
         return new JsonNull(this);
+    }
+
+    /**
+     * Re-generates the hash code.
+     * This hash code value is independent of the ancestors of this json value,
+     * but is dependent of descendants of this json value.
+     * 
+     * @return a hash code value for this object
+     * @see #hashCode()
+     */
+    @Override
+    protected int generateHashCode()
+    {
+        return 31 * 31 * 31;
+    }
+
+    /**
+     * Returns a hash code value for the object.
+     * This hash code value is independent of the ancestors of this json value.
+     * 
+     * @return a hash code value for this object
+     */
+    @Override
+    public int hashCode()
+    {
+        return super.hashCode();
+    }
+
+    /**
+     * Indicates whether some other object is "equal to" this one.
+     * This comparison is independent of the ancestors of both json values.
+     * 
+     * @param obj the reference object with which to compare
+     * @return <code>true</code> if this object is the same as the obj argument; <code>false</code> otherwise
+     */
+    @Override
+    public boolean equals(Object obj)
+    {
+        if (obj == null) {
+            return false;
+        }
+        return (obj instanceof JsonNull);
     }
 }

@@ -1,7 +1,7 @@
 /**
  * 
  *  JsonValue.java - A class that holds a generic value in json.
- *  Copyright (C) 2024 YH Choi
+ *  Copyright (C) 2024 - 2025 YH Choi
  *
  *  This program is licensed under BSD 3-Clause License.
  *  See LICENSE.txt for details.
@@ -25,7 +25,7 @@ package personal.yhchoi.java.lib.json_parser;
  * A value of json.
  *
  * @author Yui Hei Choi
- * @version 2025.01.14
+ * @version 2025.01.29
  */
 public abstract class JsonValue
 {
@@ -33,6 +33,8 @@ public abstract class JsonValue
     private JsonValue parent;       // the parent holding this json value
     private boolean locked;         // whether the value is locked
     private boolean lockedForever;  // whether the value is locked forever
+    private int cachedHashCode;     // the cached hash code
+    private boolean cachedHashCodeValid;    // whether myHashCode is valid: needs to recalculate hash code if this flag is false
     
     /**
      * Constructor for objects of class JsonValue.
@@ -53,6 +55,8 @@ public abstract class JsonValue
         parent = null;
         locked = false;
         lockedForever = false;
+        cachedHashCode = super.hashCode();
+        cachedHashCodeValid = false;
     }
     
     /**
@@ -175,7 +179,7 @@ public abstract class JsonValue
         /**
          * A class that appends serialization result to a string for toString methods to use.
          */
-        class ToStringResult implements Appendable {
+        final class ToStringResult implements Appendable {
             private String result;
 
             public ToStringResult() {
@@ -194,7 +198,7 @@ public abstract class JsonValue
 
         // makes use of serialize() method and ToStringResult class
         // to obtain serialized json values in a string
-        ToStringResult r = new ToStringResult();
+        final ToStringResult r = new ToStringResult();
         serialize(r);
         return r.getResult();
     }
@@ -206,6 +210,78 @@ public abstract class JsonValue
      * @return a duplicate of this json value
      */
     public abstract JsonValue getDuplicate();
+
+    /**
+     * Invalidates the cached hash code.
+     */
+    protected final void invalidateCachedHashCode()
+    {
+        cachedHashCodeValid = false;
+    }
+
+    /**
+     * Checks if the cached hash code is valid.
+     * 
+     * @return <code>true</code> if the cached hash code is valid, <code>false</code> otherwise
+     */
+    protected final boolean isCachedHashCodeValid()
+    {
+        return cachedHashCodeValid;
+    }
+
+    /**
+     * Re-generates the hash code.
+     * This hash code value is independent of the ancestors of this json value,
+     * but is dependent of descendants of this json value.
+     * 
+     * @return a hash code value for this object
+     * @see #hashCode()
+     */
+    protected abstract int generateHashCode();
+    /* Current version of hash code generating formulas:
+     * Warning! Subject to change.
+     * These formulas are not guaranteed unchanged in the future.
+     * JsonNull:
+     *   31 * 31 * 31
+     * JsonBool:
+     *   3 + Boolean.hashCode(getValue())
+     * JsonNum:
+     *   5 + (Double.hashCode(getValue()) * 127)
+     * JsonString:
+     *   7 + (getValue().hashCode() * 31)
+     * JsonArray:
+     *   int hash = 11; for (v : values) { hash *= 7; hash += v.hashCode(); }
+     * JsonObject:
+     *   int hash = 13; for (e : entries) { hash += e.hashCode(); }
+     */
+
+    /**
+     * Returns a hash code value for the object.
+     * This hash code value is independent of the ancestors of this json value,
+     * but is dependent of (possible) descendants of this json value.
+     * 
+     * @return a hash code value for this object
+     */
+    @Override
+    public int hashCode()
+    {
+        if (!cachedHashCodeValid) {
+            cachedHashCode = generateHashCode();
+            cachedHashCodeValid = true;
+        }
+        return cachedHashCode;
+    }
+
+    /**
+     * Indicates whether some other object is "equal to" this one.
+     * This comparison is independent of the ancestors of both json values,
+     * but is dependent of (possible) descendants of this json value.
+     * 
+     * @param obj the reference object with which to compare
+     * @return <code>true</code> if this object is the same as the obj argument; <code>false</code> otherwise
+     */
+    @Override
+    public abstract boolean equals(Object obj);
 
     /**
      * Casts this <code>JsonValue</code> to <code>JsonNull</code>.

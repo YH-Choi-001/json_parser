@@ -1,7 +1,7 @@
 /**
  * 
  *  JsonObject.java - A class that holds an object in json.
- *  Copyright (C) 2024 YH Choi
+ *  Copyright (C) 2024 - 2025 YH Choi
  *
  *  This program is licensed under BSD 3-Clause License.
  *  See LICENSE.txt for details.
@@ -21,58 +21,82 @@
 
 package personal.yhchoi.java.lib.json_parser;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.SequencedMap;
 import java.util.Set;
+import java.util.TreeMap;
 
 /**
  * An object of json.
  *
  * @author Yui Hei Choi
- * @version 2024.11.18
+ * @version 2025.01.29
  */
-public final class JsonObject extends JsonValue implements Iterable<JsonValue>
+public final class JsonObject extends JsonValue implements Iterable<Map.Entry<String, JsonValue>>
 {
-    private final ArrayList<String> keyList;            // list of keys
-    private final ArrayList<JsonValue> valueList;       // list of values
+    /**
+     * The order of json values arranged.
+     * 
+     * @see #setOrder(Order)
+     */
+    public static enum ElementOrder
+    {
+        /**
+         * Arranges the json values by the order they are inserted to this JsonObject.
+         */
+        INSERT_ORDER,
+
+        /**
+         * Arranges the json values by the lexicographical order of keys.
+         */
+        ASCENDING_ORDER;
+    }
+    
+    private ElementOrder elementOrder;
+    private static final ElementOrder DEFAULT_ELEMENT_ORDER = ElementOrder.INSERT_ORDER;
 
     /**
      * Constructor for objects of class JsonObject.
      */
     public JsonObject()
     {
-        super();
-        keyList = new ArrayList<>();
-        valueList = new ArrayList<>();
-        super.setActualValue(null);
+        this((Map<String, JsonValue>)null);
     }
     
     /**
      * Constructor for objects of class JsonObject.
      * 
-     * @param newObject the new object value
+     * @param map the map to initialize this JsonObject
+     * @throws NullPointerException if <code>(key == null) || (value == null)</code> for any entry in <code>map</code>
      */
-    public JsonObject(HashMap<String, JsonValue> newObject)
+    public JsonObject(Map<String, JsonValue> map) throws NullPointerException
     {
         super();
-        final int initSize = ((newObject != null) ? newObject.size() : 0);
-        keyList = new ArrayList<>(initSize);
-        valueList = new ArrayList<>(initSize);
         super.setActualValue(null);
-        if (newObject == null) {
+        elementOrder = null;
+        setOrder(DEFAULT_ELEMENT_ORDER);
+        if (map == null) {
             return;
         }
-        for (String key : newObject.keySet()) {
-            if ((key == null) || (newObject.get(key) == null)) {
-                continue;
+        for (Map.Entry<String, JsonValue> entry : map.entrySet()) {
+            final String key = entry.getKey();
+            final JsonValue value = entry.getValue();
+            if (key == null || value == null) {
+                throw new NullPointerException();
             }
-            keyList.add(key);
-            final JsonValue clonedValue = newObject.get(key).getDuplicate();
-            valueList.add(clonedValue);
-            clonedValue.setParent(this);
+            final JsonValue clonedValue = value.getDuplicate();
+            try {
+                setValue(key, clonedValue);
+            } catch (NullPointerException | JsonValueLockedException e) {
+                // NullPointerException should never occur at this point,
+                // because they are intercepted by the if clause above.
+
+                // JsonValueLockedException should never occur at this point,
+                // because we construct a JsonValue without lock.
+            }
         }
     }
     
@@ -84,21 +108,48 @@ public final class JsonObject extends JsonValue implements Iterable<JsonValue>
      */
     public JsonObject(JsonObject newObject)
     {
-        super();
-        final int initSize = ((newObject != null) ? newObject.size() : 0);
-        keyList = new ArrayList<>(initSize);
-        valueList = new ArrayList<>(initSize);
-        super.setActualValue(null);
-        if (newObject == null) {
+        this(newObject.getMap());
+    }
+    
+    /**
+     * Gets the original underlying map.
+     * 
+     * @return the original map
+     */
+    private SequencedMap<String, JsonValue> getMap()
+    {
+        return (SequencedMap<String, JsonValue>)super.getActualValue();
+    }
+
+    /**
+     * Sets the order of elements being arranged.
+     * 
+     * @param newElementOrder the new order of elements being arranged
+     */
+    public void setOrder(ElementOrder newElementOrder)
+    {
+        if (newElementOrder == null || this.elementOrder == newElementOrder) {
             return;
         }
-        for (int i = 0; i < newObject.keyList.size(); i++) {
-            final String key            = newObject.keyList.get(i);
-            final JsonValue clonedValue = newObject.valueList.get(i).getDuplicate();
-            keyList.add(key);
-            valueList.add(clonedValue);
-            clonedValue.setParent(this);
+        this.elementOrder = newElementOrder;
+        final SequencedMap currentMap = getMap();
+        SequencedMap newMap;
+        if (currentMap != null) {
+            newMap =
+                switch (elementOrder) {
+                case INSERT_ORDER -> new LinkedHashMap<>(currentMap);
+                case ASCENDING_ORDER -> new TreeMap<>(currentMap);
+                default -> new LinkedHashMap<>(currentMap);
+            };
+        } else {
+            newMap =
+                switch (elementOrder) {
+                case INSERT_ORDER -> new LinkedHashMap<String, JsonValue>();
+                case ASCENDING_ORDER -> new TreeMap<String, JsonValue>();
+                default -> new LinkedHashMap<String, JsonValue>();
+            };
         }
+        super.setActualValue(newMap);
     }
     
     /**
@@ -108,10 +159,11 @@ public final class JsonObject extends JsonValue implements Iterable<JsonValue>
      * 
      * @param key the key to map to this value
      * @param newValue the new value to be added
+     * @return the value added
      * @throws JsonValueLockedException if this method is called when this object is locked
      * @throws NullPointerException if <code>(key == null) || (newValue == null)</code>
      */
-    public void setValue(String key, JsonValue newValue) throws JsonValueLockedException, NullPointerException
+    public JsonValue setValue(String key, JsonValue newValue) throws JsonValueLockedException, NullPointerException
     {
         if (isLocked()) {
             throw new JsonValueLockedException();
@@ -119,20 +171,14 @@ public final class JsonObject extends JsonValue implements Iterable<JsonValue>
         if (key == null || newValue == null) {
             throw new NullPointerException();
         }
-        final int indexOfKey = keyList.indexOf(key);
-        if (indexOfKey == -1) {
-            // key not found, add to last of array
-            keyList.add(key);
-            valueList.add(newValue);
-        } else {
-            // key found, replace the key to the new value
-            // detach the old value from referencing to this object
-            final JsonValue oldValue = valueList.get(indexOfKey);
+        final JsonValue oldValue = getMap().get(key);
+        if (oldValue != null) {
             oldValue.setParent(null);
-            // put the new value into the array
-            valueList.set(indexOfKey, newValue);
         }
+        final JsonValue toReturn = getMap().put(key, newValue);
         newValue.setParent(this);
+        invalidateCachedHashCode();
+        return toReturn;
     }
 
     /**
@@ -150,13 +196,13 @@ public final class JsonObject extends JsonValue implements Iterable<JsonValue>
         if (isLocked()) {
             throw new JsonValueLockedException();
         }
-        final int indexOfKey = keyList.indexOf(key);
-        if (indexOfKey == -1) {
+        if (!getMap().containsKey(key)) {
             throw new NoSuchElementException();
         }
-        valueList.get(indexOfKey).setParent(null);
-        keyList.remove(indexOfKey);
-        return valueList.remove(indexOfKey);
+        final JsonValue toReturn = getMap().remove(key);
+        toReturn.setParent(null);
+        invalidateCachedHashCode();
+        return toReturn;
     }
     
     /**
@@ -168,14 +214,10 @@ public final class JsonObject extends JsonValue implements Iterable<JsonValue>
      */
     public JsonValue getValue(final String key) throws NoSuchElementException
     {
-        final int indexOfKey = keyList.indexOf(key);
-        if (indexOfKey == -1) {
-            // key not found
+        if (!getMap().containsKey(key)) {
             throw new NoSuchElementException();
-        } else {
-            // key found, replace the key to the new value
-            return valueList.get(indexOfKey);
         }
+        return getMap().get(key);
     }
     
     /**
@@ -185,7 +227,17 @@ public final class JsonObject extends JsonValue implements Iterable<JsonValue>
      */
     public int size()
     {
-        return keyList.size();
+        return getMap().size();
+    }
+
+    /**
+     * Checks whether this container has any objects.
+     * 
+     * @return true if this container has no object, false otherwise
+     */
+    public boolean isEmpty()
+    {
+        return getMap().isEmpty();
     }
     
     /**
@@ -196,27 +248,7 @@ public final class JsonObject extends JsonValue implements Iterable<JsonValue>
      */
     public boolean containsKey(String key)
     {
-        return keyList.contains(key);
-    }
-    
-    /**
-     * Gets the set of keys of the object.
-     * 
-     * @return the set of keys of the object
-     */
-    public Set<String> keySet()
-    {
-        return new HashSet<>(keyList);
-    }
-
-    /**
-     * Gets the ordered iterable of keys of the object.
-     * 
-     * @return the ordered iterable of keys of the object
-     */
-    public Iterable<String> keyIterable()
-    {
-        return keyList;
+        return getMap().containsKey(key);
     }
     
     /**
@@ -238,7 +270,7 @@ public final class JsonObject extends JsonValue implements Iterable<JsonValue>
             bufferedOutput.append(indent);
         }
         bufferedOutput.append("{");
-        if (size() == 0) {
+        if (isEmpty()) {
             bufferedOutput.append("}");
             return;
         }
@@ -246,15 +278,17 @@ public final class JsonObject extends JsonValue implements Iterable<JsonValue>
         indent += singleIndent;
         bufferedOutput.append(indent);
         boolean firstVal = true;
-        for (int i = 0; i < keyList.size(); i++) {
+        for (Map.Entry<String, JsonValue> entry : getMap().entrySet()) {
             if (firstVal) {
                 firstVal = false;
             } else {
                 bufferedOutput.append(",\n" + indent);
             }
 
-            bufferedOutput.append("\"" + keyList.get(i) + "\": ");
-            valueList.get(i).serialize(bufferedOutput);
+            // we just use to serialization from JsonString class : we're lazy
+            new JsonString(entry.getKey()).serialize(bufferedOutput);
+            bufferedOutput.append(": ");
+            entry.getValue().serialize(bufferedOutput);
         }
         indent = indent.substring(0, indent.length() - singleIndent.length());
         bufferedOutput.append("\n" + indent + "}");
@@ -298,7 +332,7 @@ public final class JsonObject extends JsonValue implements Iterable<JsonValue>
     // }
 
     /**
-     * Creates a duplicate of this json array and all its elements. <br>
+     * Creates a duplicate (deep copy) of this json array and all its elements. <br>
      * The returned value is not a sibling of <code>this</code>, so its parent is set to <code>null</code>.
      * 
      * @return a duplicate of this json object
@@ -310,12 +344,83 @@ public final class JsonObject extends JsonValue implements Iterable<JsonValue>
     }
 
     /**
-     * Gets an iterator.
+     * Re-generates the hash code.
+     * This hash code value is independent of the ancestors of this json value,
+     * but is dependent of descendants of this json value.
      * 
-     * @return an iterator
+     * @return a hash code value for this object
+     * @see #hashCode()
      */
     @Override
-    public Iterator<JsonValue> iterator()
+    protected int generateHashCode()
+    {
+        int hashCode = 13;
+        for (Map.Entry e : this) {
+            hashCode += e.hashCode();
+        }
+        return hashCode;
+    }
+
+    /**
+     * Returns a hash code value for the object.
+     * This hash code value is independent of the ancestors of this json value,
+     * but is dependent of descendants of this json value.
+     * 
+     * @return a hash code value for this object
+     */
+    @Override
+    public int hashCode()
+    {
+        return super.hashCode();
+    }
+
+    /**
+     * Indicates whether some other object is "equal to" this one.
+     * This comparison is independent of the ancestors of both json values,
+     * but is dependent of descendants of both json values.
+     * 
+     * @param obj the reference object with which to compare
+     * @return <code>true</code> if this object is the same as the obj argument; <code>false</code> otherwise
+     */
+    @Override
+    public boolean equals(Object obj)
+    {
+        if (obj == null) {
+            return false;
+        }
+        if (!(obj instanceof JsonObject)) {
+            return false;
+        }
+        if (obj == this) {
+            return true;
+        }
+
+        final JsonObject jsonObject = (JsonObject)obj;
+
+        if (size() != jsonObject.size()) {
+            return false;
+        }
+
+        // return this.getMap().equals(jsonObject.getMap());
+        final Map rhsMap = jsonObject.getMap();
+        for (Map.Entry<String, JsonValue> entry : this) {
+            if (!entry.getValue().equals(rhsMap.get(entry.getKey()))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Gets an iterator. <br>
+     * This iterator gives entries ordered based on the <code>setOrder()</code> method. <br>
+     * This iterator supports removal. <br>
+     * 
+     * @return an iterator
+     * @see #setOrder(ElementOrder)
+     */
+    @Override
+    public Iterator<Map.Entry<String, JsonValue>> iterator()
     {
         return new Iter();
     }
@@ -326,17 +431,21 @@ public final class JsonObject extends JsonValue implements Iterable<JsonValue>
      * @author Yui Hei Choi
      * @version 2024.12.06
      */
-    private class Iter implements Iterator<JsonValue>
+    private class Iter implements Iterator<Map.Entry<String, JsonValue>>
     {
-        private int idx;                // scanning index
-        private boolean removable;      // if the current item is removable
+        private final Iterator<Map.Entry<String, JsonValue>> iterator;
+        private String currentKey;
+        private boolean removable;
 
         /**
          * Constructor for iterator.
          */
         public Iter()
         {
-            idx = 0;
+            final Map<String, JsonValue> map = getMap();
+            final Set<Map.Entry<String, JsonValue>> entrySet = map.entrySet();
+            iterator = entrySet.iterator();
+            currentKey = null;
             removable = false;
         }
 
@@ -348,7 +457,7 @@ public final class JsonObject extends JsonValue implements Iterable<JsonValue>
         @Override
         public boolean hasNext()
         {
-            return idx < size();
+            return iterator.hasNext();
         }
 
         /**
@@ -357,15 +466,15 @@ public final class JsonObject extends JsonValue implements Iterable<JsonValue>
          * @return the next element from the iterator, or null if all elements are processed
          */
         @Override
-        public JsonValue next()
+        public Map.Entry<String, JsonValue> next()
         {
             if (!hasNext()) {
                 return null;
             }
-            final JsonValue value = valueList.get(idx);
-            idx++;
+            final Map.Entry<String, JsonValue> currentEntry = iterator.next();
+            currentKey = currentEntry.getKey();
             removable = true;
-            return value;
+            return currentEntry;
         }
 
         /**
@@ -379,9 +488,7 @@ public final class JsonObject extends JsonValue implements Iterable<JsonValue>
             if (!removable) {
                 throw new IllegalStateException();
             }
-            valueList.get(idx).setParent(null);
-            keyList.remove(idx);
-            valueList.remove(idx);
+            removeValue(currentKey);
             removable = false;
         }
     }
