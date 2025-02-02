@@ -34,7 +34,7 @@ jobs:
         run: cat sources.txt binaries.txt > sources_and_binaries.txt
       - name: build_source_jar
         run: jar -c -f json_parser_${{ github.ref_name }}_java21_src.jar @sources_and_binaries.txt
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: Package
           path: ./*.jar
