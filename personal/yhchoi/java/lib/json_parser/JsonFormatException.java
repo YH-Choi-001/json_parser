@@ -1,7 +1,7 @@
 /**
  * 
  *  JsonFormatException.java - An exception to be thrown when JsonParser finds an illegal json format.
- *  Copyright (C) 2024 YH Choi
+ *  Copyright (C) 2024 - 2025 YH Choi
  *
  *  This program is licensed under BSD 3-Clause License.
  *  See LICENSE.txt for details.
@@ -25,7 +25,7 @@ package personal.yhchoi.java.lib.json_parser;
  * Exception when JsonParser finds an illegal json format.
  * 
  * @author Yui Hei Choi
- * @version 2024.12.09
+ * @version 2025.02.05
  */
 public final class JsonFormatException extends Exception
 {

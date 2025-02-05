@@ -32,7 +32,7 @@ import java.util.NoSuchElementException;
  * An array of json.
  *
  * @author Yui Hei Choi
- * @version 2025.01.29
+ * @version 2025.02.05
  */
 public final class JsonArray extends JsonValue implements List<JsonValue>
 {

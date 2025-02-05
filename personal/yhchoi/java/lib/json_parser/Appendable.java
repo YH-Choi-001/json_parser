@@ -1,7 +1,7 @@
 /**
  * 
  *  Appendable.java - An interface that buffers json values serialization.
- *  Copyright (C) 2024 YH Choi
+ *  Copyright (C) 2024 - 2025 YH Choi
  *
  *  This program is licensed under BSD 3-Clause License.
  *  See LICENSE.txt for details.
@@ -25,7 +25,7 @@ package personal.yhchoi.java.lib.json_parser;
  * An interface that buffers json values serialization.
  * 
  * @author Yui Hei Choi
- * @version 2025.01.04
+ * @version 2025.02.05
  */
 public interface Appendable
 {

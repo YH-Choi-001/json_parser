@@ -25,7 +25,7 @@ package personal.yhchoi.java.lib.json_parser;
  * A null of json.
  *
  * @author Yui Hei Choi
- * @version 2025.01.29
+ * @version 2025.02.05
  */
 public final class JsonNull extends JsonValue
 {

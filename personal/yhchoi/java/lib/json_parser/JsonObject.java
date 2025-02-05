@@ -33,12 +33,15 @@ import java.util.TreeMap;
  * An object of json.
  *
  * @author Yui Hei Choi
- * @version 2025.01.29
+ * @version 2025.02.05
  */
 public final class JsonObject extends JsonValue implements Iterable<Map.Entry<String, JsonValue>>
 {
     /**
      * The order of json values arranged.
+     * 
+     * @author Yui Hei Choi
+     * @version 2025.02.05
      * 
      * @see #setOrder(Order)
      */
@@ -52,7 +55,7 @@ public final class JsonObject extends JsonValue implements Iterable<Map.Entry<St
         /**
          * Arranges the json values by the lexicographical order of keys.
          */
-        ASCENDING_ORDER;
+        LEXICOGRAPHICAL_ORDER;
     }
     
     private ElementOrder elementOrder;
@@ -138,14 +141,14 @@ public final class JsonObject extends JsonValue implements Iterable<Map.Entry<St
             newMap =
                 switch (elementOrder) {
                 case INSERT_ORDER -> new LinkedHashMap<>(currentMap);
-                case ASCENDING_ORDER -> new TreeMap<>(currentMap);
+                case LEXICOGRAPHICAL_ORDER -> new TreeMap<>(currentMap);
                 default -> new LinkedHashMap<>(currentMap);
             };
         } else {
             newMap =
                 switch (elementOrder) {
                 case INSERT_ORDER -> new LinkedHashMap<String, JsonValue>();
-                case ASCENDING_ORDER -> new TreeMap<String, JsonValue>();
+                case LEXICOGRAPHICAL_ORDER -> new TreeMap<String, JsonValue>();
                 default -> new LinkedHashMap<String, JsonValue>();
             };
         }
