@@ -33,7 +33,7 @@ import java.util.TreeMap;
  * An object of json.
  *
  * @author Yui Hei Choi
- * @version 2025.02.05
+ * @version 2025.02.10
  */
 public final class JsonObject extends JsonValue implements Iterable<Map.Entry<String, JsonValue>>
 {

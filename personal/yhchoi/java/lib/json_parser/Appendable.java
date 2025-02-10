@@ -25,7 +25,7 @@ package personal.yhchoi.java.lib.json_parser;
  * An interface that buffers json values serialization.
  * 
  * @author Yui Hei Choi
- * @version 2025.02.05
+ * @version 2025.02.10
  */
 public interface Appendable
 {

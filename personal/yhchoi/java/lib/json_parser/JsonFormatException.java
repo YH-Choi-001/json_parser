@@ -25,7 +25,7 @@ package personal.yhchoi.java.lib.json_parser;
  * Exception when JsonParser finds an illegal json format.
  * 
  * @author Yui Hei Choi
- * @version 2025.02.05
+ * @version 2025.02.10
  */
 public final class JsonFormatException extends Exception
 {

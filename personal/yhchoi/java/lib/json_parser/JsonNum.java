@@ -25,7 +25,7 @@ package personal.yhchoi.java.lib.json_parser;
  * A number of json.
  *
  * @author Yui Hei Choi
- * @version 2025.02.05
+ * @version 2025.02.10
  */
 public final class JsonNum extends JsonValue
 {

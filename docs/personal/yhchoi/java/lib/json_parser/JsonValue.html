@@ -92,12 +92,13 @@ loadScripts(document, 'script');</script>
 <dd><code><a href="JsonArray.html" title="class in personal.yhchoi.java.lib.json_parser">JsonArray</a></code>, <code><a href="JsonBool.html" title="class in personal.yhchoi.java.lib.json_parser">JsonBool</a></code>, <code><a href="JsonNull.html" title="class in personal.yhchoi.java.lib.json_parser">JsonNull</a></code>, <code><a href="JsonNum.html" title="class in personal.yhchoi.java.lib.json_parser">JsonNum</a></code>, <code><a href="JsonObject.html" title="class in personal.yhchoi.java.lib.json_parser">JsonObject</a></code>, <code><a href="JsonString.html" title="class in personal.yhchoi.java.lib.json_parser">JsonString</a></code></dd>
 </dl>
 <hr>
-<div class="type-signature"><span class="modifiers">public abstract class </span><span class="element-name type-name-label">JsonValue</span>
-<span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></span></div>
+<div class="type-signature"><span class="modifiers">public abstract sealed class </span><span class="element-name type-name-label">JsonValue</span>
+<span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></span>
+<span class="permits">permits <a href="JsonNull.html" title="class in personal.yhchoi.java.lib.json_parser">JsonNull</a>, <a href="JsonBool.html" title="class in personal.yhchoi.java.lib.json_parser">JsonBool</a>, <a href="JsonNum.html" title="class in personal.yhchoi.java.lib.json_parser">JsonNum</a>, <a href="JsonString.html" title="class in personal.yhchoi.java.lib.json_parser">JsonString</a>, <a href="JsonArray.html" title="class in personal.yhchoi.java.lib.json_parser">JsonArray</a>, <a href="JsonObject.html" title="class in personal.yhchoi.java.lib.json_parser">JsonObject</a></span></div>
 <div class="block">A value of json.</div>
 <dl class="notes">
 <dt>Version:</dt>
-<dd>2025.02.05</dd>
+<dd>2025.02.10</dd>
 <dt>Author:</dt>
 <dd>Yui Hei Choi</dd>
 </dl>

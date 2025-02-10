@@ -25,9 +25,9 @@ package personal.yhchoi.java.lib.json_parser;
  * A value of json.
  *
  * @author Yui Hei Choi
- * @version 2025.02.05
+ * @version 2025.02.10
  */
-public abstract class JsonValue
+public abstract sealed class JsonValue permits JsonNull, JsonBool, JsonNum, JsonString, JsonArray, JsonObject
 {
     private Object value;           // the value held by this json value
     private JsonValue parent;       // the parent holding this json value

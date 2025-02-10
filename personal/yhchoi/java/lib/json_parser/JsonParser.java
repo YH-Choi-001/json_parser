@@ -36,7 +36,7 @@ import java.nio.charset.Charset;
  * A parser for json files.
  *
  * @author Yui Hei Choi
- * @version 2025.02.05
+ * @version 2025.02.10
  */
 public class JsonParser
 {

@@ -25,7 +25,7 @@ package personal.yhchoi.java.lib.json_parser;
  * Exception when java program attempts to modify a locked JsonValue.
  * 
  * @author Yui Hei Choi
- * @version 2025.02.05
+ * @version 2025.02.10
  */
 public class JsonValueLockedException extends RuntimeException
 {
