@@ -18,6 +18,9 @@
   ------------------------------------------------------------------------------------>
 
 # json_parser  
+[![GitHub release](https://img.shields.io/github/v/release/YH-Choi-001/json_parser.svg)](https://github.com/YH-Choi-001/json_parser/releases/latest)  
+![GitHub All Releases](https://img.shields.io/github/downloads/YH-Choi-001/json_parser/total.svg?label=downloads)  
+[![GitHub commits since latest release](https://img.shields.io/github/commits-since/YH-Choi-001/json_parser/latest/main)](https://github.com/YH-Choi-001/json_parser/)
 ## A powerful tool to serialize and deserialize structured data.  
   
 Title: JSON Parser  
